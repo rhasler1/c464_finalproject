@@ -121,6 +121,10 @@ int main(const int argc, const char *const argv[])
 				}
 			}
 		}
+		time_result = naive_parallel_time.get_elapsed_ns();
+		spdlog::info("Naive execution done.");
+		spdlog::info("Getting elapsed time...");
+		mark_time(timestamps, time_result, "Naive Time");
 	}
 
 	else if (run_block_parallel)
