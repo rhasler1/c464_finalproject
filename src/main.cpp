@@ -11,10 +11,10 @@
 int main(const int argc, const char *const argv[])
 {
     // Initializing defaults.
-    bool run_sequential{false};									// Option to run sequential code.
-    bool run_naive_parallel{false};								// Option to run naive parallel code.
+    bool run_sequential{false};                                 // Option to run sequential code.
+    bool run_naive_parallel{false};                             // Option to run naive parallel code.
     bool run_block_parallel{false};								// Option to run cache optimized parallel code.
-    bool print{false};											// Option to print to console.
+    bool print{false};                                          // Option to print to console.
 
     uint vertices{100};											// Default to 100 nodes.
     uint edges{200};											// Default to 200 edges.
