@@ -8,7 +8,7 @@
 int generate_simple_directed_linear(std::vector<int> & graph, int vertices, int edges)
 {
     if (edges > vertices * (vertices - 1)) {
-        spdlog::error("Number of edges %d exceeds what is possible given number of vertices %d", edges, vertices);
+        spdlog::error("Number of edges {} exceeds what is possible given number of vertices {}", edges, vertices);
         return -1;
     }
     

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.28)
 
 # Project name and language
 project(
-	HPCFinalProjectF24
+	floyd_warshall
 	VERSION 0.1
 	DESCRIPTION "Floyd-Warshall: A cache optimization analysis"
 	LANGUAGES CXX
@@ -47,6 +47,20 @@ FetchContent_Declare(
         GIT_TAG        release-1.11.0
 )
 FetchContent_MakeAvailable(googletest)
+
+# Add OpenMP support
+find_package(OpenMP REQUIRED)
+if(OpenMP_CXX_FOUND)
+        message(STATUS "OpenMP found: ${OpenMP_CXX_VERSION}")
+        set(OpenMP_FLAGS "${OpenMP_CXX_FLAGS}")
+        set(OpenMP_LIBS OpenMP::OpenMP_CXX)
+else()
+        message(FATAL_ERROR "OpenMP not found")
+endif()
+
+# Pass OpenMP flags to subdirectories
+set(OPENMP_FLAGS ${OpenMP_CXX_FLAGS})
+set(OPENMP_LIBS ${OPENMP_LIBS})
 
 # Add subdirectories here:
 add_subdirectory(src)
