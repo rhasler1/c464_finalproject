@@ -13,24 +13,24 @@ int main(const int argc, const char *const argv[])
     // Initializing defaults.
     bool run_sequential{false};                                 // Option to run sequential code.
     bool run_naive_parallel{false};                             // Option to run naive parallel code.
-    bool run_block_parallel{false};								// Option to run cache optimized parallel code.
+    bool run_block_parallel{false};                             // Option to run cache optimized parallel code.
     bool print{false};                                          // Option to print to console.
 
-    uint vertices{100};											// Default to 100 nodes.
-    uint edges{200};											// Default to 200 edges.
-    uint threads{1};											// Default to 1 thread.
+    uint vertices{100};                                         // Default to 100 nodes.
+    uint edges{200};                                            // Default to 200 edges.
+    uint threads{1};                                            // Default to 1 thread.
 
-    double time_result;											// Variable used to mark time.
-    std::vector<std::tuple<std::string, double>> timestamps;	// Place to store timestamps.
+    double time_result;                                         // Variable used to mark time.
+    std::vector<std::tuple<std::string, double>> timestamps;    // Place to store timestamps.
 
 
     // CLI setup and parse.
     CLI::App app{"Floyd-Warshall"};
     app.option_defaults()->always_capture_default(true);
     app.add_option("-v, --vertices", vertices)
-        ->check(CLI::PositiveNumber.description(" >= 1"));		// Change to >= 0; look at CLI API.
+        ->check(CLI::PositiveNumber.description(" >= 1"));      // Change to >= 0; look at CLI API.
     app.add_option("-e, --edges", edges)
-        ->check(CLI::PositiveNumber.description(" >= 1"));		// Change to >= 0; look at CLI API.
+        ->check(CLI::PositiveNumber.description(" >= 1"));      // Change to >= 0; look at CLI API.
     app.add_option("-t, --threads", threads)
         ->check(CLI::PositiveNumber.description(" >= 1"));
     app.add_flag("-s, --sequential", run_sequential);
@@ -72,7 +72,7 @@ int main(const int argc, const char *const argv[])
         }
     
     // Generate graph.
-    std::vector<uint> graph(vertices * vertices);					// Adjacency matrix, see graph.cpp for details.
+    std::vector<uint> graph(vertices * vertices);               // Adjacency matrix, see graph.cpp for details.
     if (!generate_linear_graph) {
         spdlog::error("Failed to generate graph... Exiting program.");
         return 1;
