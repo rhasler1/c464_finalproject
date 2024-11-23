@@ -19,6 +19,7 @@ int main(const int argc, const char *const argv[])
     uint vertices{100};                                         // Default to 100 nodes.
     uint edges{200};                                            // Default to 200 edges.
     uint threads{1};                                            // Default to 1 thread.
+    uint tile_length{1};                                        // Default to 1 length.
 
     double time_result;                                         // Variable used to mark time.
     std::vector<std::tuple<std::string, double>> timestamps;    // Place to store timestamps.
@@ -33,14 +34,24 @@ int main(const int argc, const char *const argv[])
         ->check(CLI::PositiveNumber.description(" >= 1"));      // Change to >= 0; look at CLI API.
     app.add_option("-t, --threads", threads)
         ->check(CLI::PositiveNumber.description(" >= 1"));
+    app.add_option("-l, --tile-length", tile_length)
+        ->check(CLI::PositiveNumber.description(" >= 1"));
     app.add_flag("-s, --sequential", run_sequential);
     app.add_flag("-n, --naive-parallel", run_naive_parallel);
     app.add_flag("-p, --block-parallel", run_block_parallel);
     CLI11_PARSE(app, argc, argv);
 
-    // Log the number of vertices and edges
+    // Log the number of vertices and edges.
     spdlog::info("Number of vertices: {}", vertices);
     spdlog::info("Number of edges: {}", edges);
+
+    // Ensure tile length is smaller than graph length.
+    if (tile_length > vertices) {
+        spdlog::error("Tile length {} cannot be greater than number of vertices {}",
+        tile_length,
+        vertices
+        );
+    }
 
     // Ensure threads is within available range.
     // No need to check the minimum, this is taken care of during CLI parse
@@ -124,12 +135,40 @@ int main(const int argc, const char *const argv[])
         time_result = naive_parallel_time.get_elapsed_ns();
         spdlog::info("Naive execution done.");
         spdlog::info("Getting elapsed time...");
-        mark_time(timestamps, time_result, "Naive Time");
+        mark_time(timestamps, time_result, "Naive time");
     }
 
     else if (run_block_parallel)
     {
-        //TODO
+        spdlog::info("Beginning Floyd-Warshall parallel with cache optimizations");
+        spdlog::info("Beginning nanotimer...");
+        plf::nanotimer optimized_parallel_time;
+        optimized_parallel_time.start();
+        for (int k = 0; k < vertices; k++) {
+            // TODO: algorithm needs work.
+            // Process tiles
+            #pragma omp parallel for collapse(2) schedule(static)
+            for (int i_tile = 0; i_tile < vertices; i_tile += tile_length) {
+                for (int j_tile = 0; j_tile < vertices; j_tile += tile_length) {
+                    // Process elements within the current tile
+                    int i_tile_end = (i_tile + tile_length < vertices) ? i_tile + tile_length : vertices;
+                    int j_tile_end = (j_tile + tile_length < vertices) ? j_tile + tile_length : vertices;
+                    for (int i = i_tile; i < i_tile_end; i++) {
+                        for (int j = j_tile; j < j_tile_end; j++) {
+                            // Update graph with the current intermediate vertex k
+                            if (graph[i * vertices + j] > graph[i * vertices + k] + graph[k * vertices + j])
+                            {
+                                graph[i * vertices + j] = graph[i * vertices + k] + graph[k * vertices + j];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        time_result = optimized_parallel_time.get_elapsed_ns();
+        spdlog::info("Optimized execution done.");
+        spdlog::info("Getting elapsed time...");
+        mark_time(timestamps, time_result, "Optimized time");
     }
 
     // Printing execution details.
