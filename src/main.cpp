@@ -64,6 +64,13 @@ int main(const int argc, const char *const argv[])
         threads = max_threads;
         spdlog::info("Threads is now {}", threads);
     }
+    omp_set_num_threads(threads);
+
+    // Testing if threads were properly set.
+    #pragma omp parallel for
+    for (int t = 0; t < 1; t++) {
+        fmt::print("Number of threads being used: {}", omp_get_num_threads());
+    }
 
     // Ensure user input at least one mode of execution.
     if (
@@ -146,27 +153,47 @@ int main(const int argc, const char *const argv[])
         spdlog::info("Beginning nanotimer...");
         plf::nanotimer optimized_parallel_time;
         optimized_parallel_time.start();
+        std::vector<int> tile(tile_length * tile_length);       // Temporary storage for a tile.       
         for (int k = 0; k < vertices; k++) {
             // TODO: algorithm needs work.
             // Process tiles
             #pragma omp parallel for collapse(2) schedule(static)
             for (int i_tile = 0; i_tile < vertices; i_tile += tile_length) {
                 for (int j_tile = 0; j_tile < vertices; j_tile += tile_length) {
-                    // Process elements within the current tile
-                    int i_tile_end = (i_tile + tile_length < vertices) ? i_tile + tile_length : vertices;
-                    int j_tile_end = (j_tile + tile_length < vertices) ? j_tile + tile_length : vertices;
+                    int i_tile_end = std::min(i_tile + tile_length, vertices);
+                    int j_tile_end = std::min(j_tile + tile_length, vertices);
+
+                    // Copy the tile into temporary storage.
+                    //#pragma omp parallel for collapse(2) schedule(static)
                     for (int i = i_tile; i < i_tile_end; i++) {
                         for (int j = j_tile; j < j_tile_end; j++) {
-                            // Update graph with the current intermediate vertex k
-                            if (graph[i * vertices + j] > graph[i * vertices + k] + graph[k * vertices + j])
-                            {
-                                graph[i * vertices + j] = graph[i * vertices + k] + graph[k * vertices + j];
+                            tile[(i - i_tile) * tile_length + (j - j_tile)] = graph[i * vertices + j];
+                        }
+                    }
+
+                    // Perform computation on tile.
+                    // Perform computation on the tile
+                    //#pragma omp parallel for collapse(2) schedule(static)
+                    for (int i = i_tile; i < i_tile_end; i++) {
+                        for (int j = j_tile; j < j_tile_end; j++) {
+                            int tile_i = i - i_tile;
+                            int tile_j = j - j_tile;
+                            if (tile[tile_i * tile_length + tile_j] > graph[i * vertices + k] + graph[k * vertices + j]) {
+                                tile[tile_i * tile_length + tile_j] = graph[i * vertices + k] + graph[k * vertices + j];
                             }
+                        }
+                    }
+                    // Copy the tile back into the graph
+                    //#pragma omp parallel for collapse(2) schedule(static)
+                    for (int i = i_tile; i < i_tile_end; i++) {
+                        for (int j = j_tile; j < j_tile_end; j++) {
+                            graph[i * vertices + j] = tile[(i - i_tile) * tile_length + (j - j_tile)];
                         }
                     }
                 }
             }
         }
+
         time_result = optimized_parallel_time.get_elapsed_ns();
         spdlog::info("Optimized execution done.");
         spdlog::info("Getting elapsed time...");
@@ -200,3 +227,39 @@ int main(const int argc, const char *const argv[])
             }
     
     */
+
+
+/*
+    else if (run_block_parallel)
+    {
+        spdlog::info("Beginning Floyd-Warshall parallel with cache optimizations");
+        spdlog::info("Beginning nanotimer...");
+        plf::nanotimer optimized_parallel_time;
+        optimized_parallel_time.start();
+        for (int k = 0; k < vertices; k++) {
+            // TODO: algorithm needs work.
+            // Process tiles
+            #pragma omp parallel for collapse(2) schedule(static)
+            for (int i_tile = 0; i_tile < vertices; i_tile += tile_length) {
+                for (int j_tile = 0; j_tile < vertices; j_tile += tile_length) {
+                    // Process elements within the current tile
+                    int i_tile_end = (i_tile + tile_length < vertices) ? i_tile + tile_length : vertices;
+                    int j_tile_end = (j_tile + tile_length < vertices) ? j_tile + tile_length : vertices;
+                    for (int i = i_tile; i < i_tile_end; i++) {
+                        for (int j = j_tile; j < j_tile_end; j++) {
+                            // Update graph with the current intermediate vertex k
+                            if (graph[i * vertices + j] > graph[i * vertices + k] + graph[k * vertices + j])
+                            {
+                                graph[i * vertices + j] = graph[i * vertices + k] + graph[k * vertices + j];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        time_result = optimized_parallel_time.get_elapsed_ns();
+        spdlog::info("Optimized execution done.");
+        spdlog::info("Getting elapsed time...");
+        mark_time(timestamps, time_result, "Optimized time");
+    }
+*/
