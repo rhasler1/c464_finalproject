@@ -5,7 +5,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-int generate_simple_directed_linear(std::vector<int> & graph, int vertices, int edges)
+int generate_linear_graph(std::vector<int> & graph, int vertices, int edges)
 {
     if (edges > vertices * (vertices - 1)) {
         spdlog::error("Number of edges {} exceeds what is possible given number of vertices {}", edges, vertices);

@@ -16,10 +16,10 @@ int main(const int argc, const char *const argv[])
     bool run_block_parallel{false};                             // Option to run cache optimized parallel code.
     bool print{false};                                          // Option to print to console.
 
-    uint vertices{100};                                         // Default to 100 nodes.
-    uint edges{200};                                            // Default to 200 edges.
-    uint threads{1};                                            // Default to 1 thread.
-    uint tile_length{1};                                        // Default to 1 length.
+    int vertices{100};                                         // Default to 100 nodes.
+    int edges{200};                                            // Default to 200 edges.
+    int threads{1};                                            // Default to 1 thread.
+    int tile_length{1};                                        // Default to 1 length.
 
     double time_result;                                         // Variable used to mark time.
     std::vector<std::tuple<std::string, double>> timestamps;    // Place to store timestamps.
@@ -56,7 +56,7 @@ int main(const int argc, const char *const argv[])
     // Ensure threads is within available range.
     // No need to check the minimum, this is taken care of during CLI parse
     // (see: ->check(CLI::PositiveNumber.description(" >= 1")))
-    uint max_threads = omp_get_max_threads();
+    int max_threads = omp_get_max_threads();
     if (threads > max_threads)
     {
         spdlog::info("Argument threads {} is greater than max threads {}", threads, max_threads);
@@ -83,11 +83,13 @@ int main(const int argc, const char *const argv[])
         }
     
     // Generate graph.
-    std::vector<uint> graph(vertices * vertices);               // Adjacency matrix, see graph.cpp for details.
-    if (!generate_linear_graph) {
+    spdlog::info("Generating graph data...");
+    std::vector<int> graph(vertices * vertices);               // Adjacency matrix, see graph.cpp for details.
+    if (!generate_linear_graph(graph, vertices, edges)) {
         spdlog::error("Failed to generate graph... Exiting program.");
         return 1;
     }
+    spdlog::info("Done populating graph with data.");
 
     if (run_sequential)
     {
