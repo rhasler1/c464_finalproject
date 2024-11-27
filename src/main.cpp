@@ -7,6 +7,13 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
+using namespace std;
+
+void blocked_floyd_warshall(vector<int> &W, int n, int b);
+inline int block_idx(int i, int j, int b);
+void floyd(vector<int> &C, const vector<int> &A, const vector<int> &B, int b);
+
+
 
 int main(const int argc, const char *const argv[])
 {
@@ -153,47 +160,7 @@ int main(const int argc, const char *const argv[])
         spdlog::info("Beginning nanotimer...");
         plf::nanotimer optimized_parallel_time;
         optimized_parallel_time.start();
-        std::vector<int> tile(tile_length * tile_length);       // Temporary storage for a tile.       
-        for (int k = 0; k < vertices; k++) {
-            // TODO: algorithm needs work.
-            // Process tiles
-            #pragma omp parallel for collapse(2) schedule(static)
-            for (int i_tile = 0; i_tile < vertices; i_tile += tile_length) {
-                for (int j_tile = 0; j_tile < vertices; j_tile += tile_length) {
-                    int i_tile_end = std::min(i_tile + tile_length, vertices);
-                    int j_tile_end = std::min(j_tile + tile_length, vertices);
-
-                    // Copy the tile into temporary storage.
-                    //#pragma omp parallel for collapse(2) schedule(static)
-                    for (int i = i_tile; i < i_tile_end; i++) {
-                        for (int j = j_tile; j < j_tile_end; j++) {
-                            tile[(i - i_tile) * tile_length + (j - j_tile)] = graph[i * vertices + j];
-                        }
-                    }
-
-                    // Perform computation on tile.
-                    // Perform computation on the tile
-                    //#pragma omp parallel for collapse(2) schedule(static)
-                    for (int i = i_tile; i < i_tile_end; i++) {
-                        for (int j = j_tile; j < j_tile_end; j++) {
-                            int tile_i = i - i_tile;
-                            int tile_j = j - j_tile;
-                            if (tile[tile_i * tile_length + tile_j] > graph[i * vertices + k] + graph[k * vertices + j]) {
-                                tile[tile_i * tile_length + tile_j] = graph[i * vertices + k] + graph[k * vertices + j];
-                            }
-                        }
-                    }
-                    // Copy the tile back into the graph
-                    //#pragma omp parallel for collapse(2) schedule(static)
-                    for (int i = i_tile; i < i_tile_end; i++) {
-                        for (int j = j_tile; j < j_tile_end; j++) {
-                            graph[i * vertices + j] = tile[(i - i_tile) * tile_length + (j - j_tile)];
-                        }
-                    }
-                }
-            }
-        }
-
+        blocked_floyd_warshall(graph, vertices, tile_length);
         time_result = optimized_parallel_time.get_elapsed_ns();
         spdlog::info("Optimized execution done.");
         spdlog::info("Getting elapsed time...");
@@ -212,6 +179,114 @@ int main(const int argc, const char *const argv[])
     print_timestamps(timestamps);
     spdlog::info("Exiting program.");
     return 0;
+}
+
+
+// Helper function to calculate 1D index in a block
+inline int block_idx(int i, int j, int b) {
+    return i * b + j;
+}
+
+// Floyd-Warshall on a single block (b × b matrix stored as a 1D vector)
+void floyd(vector<int> &C, const vector<int> &A, const vector<int> &B, int b) {
+    for (int k = 0; k < b; ++k) {
+        for (int j = 0; j < b; ++j) {
+            for (int i = 0; i < b; ++i) {
+                int c_idx = block_idx(i, j, b);
+                int a_idx = block_idx(i, k, b);
+                int b_idx = block_idx(k, j, b);
+                C[c_idx] = min(C[c_idx], A[a_idx] + B[b_idx]);
+            }
+        }
+    }
+}
+
+// Blocked Floyd-Warshall
+void blocked_floyd_warshall(vector<int> &W, int n, int b) {
+    int B = n / b; // Number of blocks along one dimension
+
+    // Iterate over all block rows and columns
+    for (int k = 0; k < B; ++k) {
+        // Dependent Phase: Process block W[k][k]
+        vector<int> Wkk(b * b);
+        for (int i = 0; i < b; ++i) {
+            for (int j = 0; j < b; ++j) {
+                Wkk[block_idx(i, j, b)] = W[block_idx(k * b + i, k * b + j, n)];
+            }
+        }
+        floyd(Wkk, Wkk, Wkk, b);
+
+        // Write back W[k][k]
+        for (int i = 0; i < b; ++i) {
+            for (int j = 0; j < b; ++j) {
+                W[block_idx(k * b + i, k * b + j, n)] = Wkk[block_idx(i, j, b)];
+            }
+        }
+
+        // Partially Dependent Phase: Update rows and columns around W[k][k]
+        #pragma omp parallel for
+        for (int j = 0; j < B; ++j) {
+            if (j != k) {
+                vector<int> Wkj(b * b), Wkj_tmp(b * b);
+                for (int i = 0; i < b; ++i) {
+                    for (int l = 0; l < b; ++l) {
+                        Wkj[block_idx(i, l, b)] = W[block_idx(k * b + i, j * b + l, n)];
+                        Wkj_tmp[block_idx(i, l, b)] = Wkj[block_idx(i, l, b)];
+                    }
+                }
+                floyd(Wkj_tmp, Wkk, Wkj, b);
+                for (int i = 0; i < b; ++i) {
+                    for (int l = 0; l < b; ++l) {
+                        W[block_idx(k * b + i, j * b + l, n)] = Wkj_tmp[block_idx(i, l, b)];
+                    }
+                }
+            }
+        }
+
+        #pragma omp parallel for
+        for (int i = 0; i < B; ++i) {
+            if (i != k) {
+                vector<int> Wik(b * b), Wik_tmp(b * b);
+                for (int j = 0; j < b; ++j) {
+                    for (int l = 0; l < b; ++l) {
+                        Wik[block_idx(j, l, b)] = W[block_idx(i * b + j, k * b + l, n)];
+                        Wik_tmp[block_idx(j, l, b)] = Wik[block_idx(j, l, b)];
+                    }
+                }
+                floyd(Wik_tmp, Wik, Wkk, b);
+                for (int j = 0; j < b; ++j) {
+                    for (int l = 0; l < b; ++l) {
+                        W[block_idx(i * b + j, k * b + l, n)] = Wik_tmp[block_idx(j, l, b)];
+                    }
+                }
+            }
+        }
+
+        // Independent Phase: Update all other blocks
+        #pragma omp parallel for
+        for (int i = 0; i < B; ++i) {
+            if (i != k) {
+                for (int j = 0; j < B; ++j) {
+                    if (j != k) {
+                        vector<int> Wij(b * b), Wik(b * b), Wkj(b * b);
+                        for (int x = 0; x < b; ++x) {
+                            for (int y = 0; y < b; ++y) {
+                                Wij[block_idx(x, y, b)] = W[block_idx(i * b + x, j * b + y, n)];
+                                Wik[block_idx(x, y, b)] = W[block_idx(i * b + x, k * b + y, n)];
+                                Wkj[block_idx(x, y, b)] = W[block_idx(k * b + x, j * b + y, n)];
+                            }
+                        }
+                        floyd(Wij, Wik, Wkj, b);
+                        for (int x = 0; x < b; ++x) {
+                            for (int y = 0; y < b; ++y) {
+                                W[block_idx(i * b + x, j * b + y, n)] = Wij[block_idx(x, y, b)];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // KERNEL CODE
