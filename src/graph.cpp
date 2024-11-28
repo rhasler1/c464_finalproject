@@ -2,13 +2,34 @@
 // Why to linearize: https://community.khronos.org/t/matrix-multiplication-using-2d-std-vector/106457#:~:text=On%20a%20more,be%20known%20statically.
 
 #include "graph.h"
+#include "globals.h"
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
+// Function needs to be modified.
+// 0 < x < INF:     valid edge.   
+// 0:               reserved for distance between vertex and itself (entries on diaganol).
+// INF:             no edges between vertices.
 int generate_linear_graph(std::vector<int> & graph, int vertices, int edges)
 {
+    // Set diaganol to 0.
+    for (int i = 0; i < vertices; i++) {
+        for (int j = 0; j < vertices; j++) {
+            // Get current position.
+            int position = i * vertices + j;
+            // If position is on a diaganol, then set entry to 0.
+            if (position == i * vertices + i) {
+                graph[position] = 0;
+            }
+        }
+    }
+
     if (edges > vertices * (vertices - 1)) {
-        spdlog::error("Number of edges {} exceeds what is possible given number of vertices {}", edges, vertices);
+        spdlog::error(
+            "Number of edges {} exceeds what is possible given number of vertices {}",
+            edges,
+            vertices
+        );
         return -1;
     }
     

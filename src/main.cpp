@@ -1,19 +1,23 @@
 #include "graph.h"
 #include "plf_nanotimer.h"
 #include "timestamps.h"
+#include "kernels.h"
+#include "globals.h"
 #include <omp.h>
 #include <CLI/CLI.hpp>
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-using namespace std;
-
-void blocked_floyd_warshall(vector<int> &W, int n, int b);
-inline int block_idx(int i, int j, int b);
-void floyd(vector<int> &C, const vector<int> &A, const vector<int> &B, int b);
-
-
+void print_graph(std::vector<int> & graph, int vertices)
+{
+    for (int i = 0; i < vertices; i++) {
+        for (int j = 0; j < vertices; j++) {
+            fmt::print("{} ", graph[i * vertices + j]);
+        }
+        fmt::print("\n");
+    }
+}
 
 int main(const int argc, const char *const argv[])
 {
@@ -45,7 +49,8 @@ int main(const int argc, const char *const argv[])
         ->check(CLI::PositiveNumber.description(" >= 1"));
     app.add_flag("-s, --sequential", run_sequential);
     app.add_flag("-n, --naive-parallel", run_naive_parallel);
-    app.add_flag("-p, --block-parallel", run_block_parallel);
+    app.add_flag("-b, --block-parallel", run_block_parallel);
+    app.add_flag("-p, --print", print);
     CLI11_PARSE(app, argc, argv);
 
     // Log the number of vertices and edges.
@@ -76,7 +81,7 @@ int main(const int argc, const char *const argv[])
     // Testing if threads were properly set.
     #pragma omp parallel for
     for (int t = 0; t < 1; t++) {
-        fmt::print("Number of threads being used: {}", omp_get_num_threads());
+        fmt::print("Number of threads being used: {}\n", omp_get_num_threads());
     }
 
     // Ensure user input at least one mode of execution.
@@ -98,12 +103,14 @@ int main(const int argc, const char *const argv[])
     
     // Generate graph.
     spdlog::info("Generating graph data...");
-    std::vector<int> graph(vertices * vertices);               // Adjacency matrix, see graph.cpp for details.
-    if (!generate_linear_graph(graph, vertices, edges)) {
+    std::vector<int> graph(vertices * vertices, INF);                    // Adjacency matrix, see graph.cpp for details.
+    if (generate_linear_graph(graph, vertices, edges) == -1) {
         spdlog::error("Failed to generate graph... Exiting program.");
         return 1;
     }
     spdlog::info("Done populating graph with data.");
+    //fmt::print("Checking generated graph:\n");
+    //print_graph(graph, vertices);
 
     if (run_sequential)
     {
@@ -111,17 +118,7 @@ int main(const int argc, const char *const argv[])
         spdlog::info("Starting nanotimer...");
         plf::nanotimer sequential_time;
         sequential_time.start();
-        for (int k = 0; k < vertices; k++) {
-            for (int i = 0; i < vertices; i++) {
-                for (int j = 0; j < vertices; j++) {
-                    if (graph[i * vertices + j] > (graph[i * vertices + k] + graph[k * vertices + j]))
-                    {
-                        // Note: I am assuming weights are not INF.
-                        graph[i * vertices + j] = graph[i * vertices + k] + graph[k * vertices + j];
-                    }
-                }
-            }
-        }
+        serial_floyd_warshall(graph, vertices);                     // See kernels.cpp for algorithm implementation.
         time_result = sequential_time.get_elapsed_ns();
         spdlog::info("Sequential execution done.");
         spdlog::info("Getting elapsed time...");
@@ -134,20 +131,7 @@ int main(const int argc, const char *const argv[])
         spdlog::info("Beginning nanotimer...");
         plf::nanotimer naive_parallel_time;
         naive_parallel_time.start();
-        for (int k = 0; k < vertices; k++) {
-            // Collapse the i and j loops into a single iteration space;
-            // this allows both loops to parallelize together.
-            #pragma omp parallel for collapse(2) schedule(static)
-            for (int i = 0; i < vertices; i++) {
-                for (int j = 0; j < vertices; j++) {
-                    if (graph[i * vertices + j] > (graph[i * vertices + k] + graph[k * vertices + j]))
-                    {
-                        // Note: I am assuming weights are not INF.
-                        graph[i * vertices + j] = graph[i * vertices + k] + graph[k * vertices + j];
-                    }
-                }
-            }
-        }
+        naive_floyd_warshall(graph, vertices);                      // See kernels.cpp for algorithm implementation.
         time_result = naive_parallel_time.get_elapsed_ns();
         spdlog::info("Naive execution done.");
         spdlog::info("Getting elapsed time...");
@@ -160,7 +144,7 @@ int main(const int argc, const char *const argv[])
         spdlog::info("Beginning nanotimer...");
         plf::nanotimer optimized_parallel_time;
         optimized_parallel_time.start();
-        blocked_floyd_warshall(graph, vertices, tile_length);
+        blocked_floyd_warshall(graph, vertices, tile_length);       // See kernels.cpp for algorithm implementation.
         time_result = optimized_parallel_time.get_elapsed_ns();
         spdlog::info("Optimized execution done.");
         spdlog::info("Getting elapsed time...");
@@ -169,6 +153,12 @@ int main(const int argc, const char *const argv[])
 
     // Printing execution details.
     spdlog::info("Printing graph details...");
+    if (print)
+    {
+        spdlog::info("Printing graph");
+        print_graph(graph, vertices);
+    }
+
     fmt::print(
         "Number of vertices: {}\nNumber of edges: {}\nGraph memory footprint: {}\n",
         vertices,
@@ -179,114 +169,6 @@ int main(const int argc, const char *const argv[])
     print_timestamps(timestamps);
     spdlog::info("Exiting program.");
     return 0;
-}
-
-
-// Helper function to calculate 1D index in a block
-inline int block_idx(int i, int j, int b) {
-    return i * b + j;
-}
-
-// Floyd-Warshall on a single block (b × b matrix stored as a 1D vector)
-void floyd(vector<int> &C, const vector<int> &A, const vector<int> &B, int b) {
-    for (int k = 0; k < b; ++k) {
-        for (int j = 0; j < b; ++j) {
-            for (int i = 0; i < b; ++i) {
-                int c_idx = block_idx(i, j, b);
-                int a_idx = block_idx(i, k, b);
-                int b_idx = block_idx(k, j, b);
-                C[c_idx] = min(C[c_idx], A[a_idx] + B[b_idx]);
-            }
-        }
-    }
-}
-
-// Blocked Floyd-Warshall
-void blocked_floyd_warshall(vector<int> &W, int n, int b) {
-    int B = n / b; // Number of blocks along one dimension
-
-    // Iterate over all block rows and columns
-    for (int k = 0; k < B; ++k) {
-        // Dependent Phase: Process block W[k][k]
-        vector<int> Wkk(b * b);
-        for (int i = 0; i < b; ++i) {
-            for (int j = 0; j < b; ++j) {
-                Wkk[block_idx(i, j, b)] = W[block_idx(k * b + i, k * b + j, n)];
-            }
-        }
-        floyd(Wkk, Wkk, Wkk, b);
-
-        // Write back W[k][k]
-        for (int i = 0; i < b; ++i) {
-            for (int j = 0; j < b; ++j) {
-                W[block_idx(k * b + i, k * b + j, n)] = Wkk[block_idx(i, j, b)];
-            }
-        }
-
-        // Partially Dependent Phase: Update rows and columns around W[k][k]
-        #pragma omp parallel for
-        for (int j = 0; j < B; ++j) {
-            if (j != k) {
-                vector<int> Wkj(b * b), Wkj_tmp(b * b);
-                for (int i = 0; i < b; ++i) {
-                    for (int l = 0; l < b; ++l) {
-                        Wkj[block_idx(i, l, b)] = W[block_idx(k * b + i, j * b + l, n)];
-                        Wkj_tmp[block_idx(i, l, b)] = Wkj[block_idx(i, l, b)];
-                    }
-                }
-                floyd(Wkj_tmp, Wkk, Wkj, b);
-                for (int i = 0; i < b; ++i) {
-                    for (int l = 0; l < b; ++l) {
-                        W[block_idx(k * b + i, j * b + l, n)] = Wkj_tmp[block_idx(i, l, b)];
-                    }
-                }
-            }
-        }
-
-        #pragma omp parallel for
-        for (int i = 0; i < B; ++i) {
-            if (i != k) {
-                vector<int> Wik(b * b), Wik_tmp(b * b);
-                for (int j = 0; j < b; ++j) {
-                    for (int l = 0; l < b; ++l) {
-                        Wik[block_idx(j, l, b)] = W[block_idx(i * b + j, k * b + l, n)];
-                        Wik_tmp[block_idx(j, l, b)] = Wik[block_idx(j, l, b)];
-                    }
-                }
-                floyd(Wik_tmp, Wik, Wkk, b);
-                for (int j = 0; j < b; ++j) {
-                    for (int l = 0; l < b; ++l) {
-                        W[block_idx(i * b + j, k * b + l, n)] = Wik_tmp[block_idx(j, l, b)];
-                    }
-                }
-            }
-        }
-
-        // Independent Phase: Update all other blocks
-        #pragma omp parallel for
-        for (int i = 0; i < B; ++i) {
-            if (i != k) {
-                for (int j = 0; j < B; ++j) {
-                    if (j != k) {
-                        vector<int> Wij(b * b), Wik(b * b), Wkj(b * b);
-                        for (int x = 0; x < b; ++x) {
-                            for (int y = 0; y < b; ++y) {
-                                Wij[block_idx(x, y, b)] = W[block_idx(i * b + x, j * b + y, n)];
-                                Wik[block_idx(x, y, b)] = W[block_idx(i * b + x, k * b + y, n)];
-                                Wkj[block_idx(x, y, b)] = W[block_idx(k * b + x, j * b + y, n)];
-                            }
-                        }
-                        floyd(Wij, Wik, Wkj, b);
-                        for (int x = 0; x < b; ++x) {
-                            for (int y = 0; y < b; ++y) {
-                                W[block_idx(i * b + x, j * b + y, n)] = Wij[block_idx(x, y, b)];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 // KERNEL CODE
