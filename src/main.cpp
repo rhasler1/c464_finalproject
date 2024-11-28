@@ -58,9 +58,9 @@
  * - Ensure that `INF` is defined appropriately to represent disconnected vertices.
  * 
  * @example
- * To run the program with 500 vertices, 1000 edges, 4 threads, and block size 10:
+ * To run the program with 10 vertices, 10 edges, 4 threads, and block length 2:
  * ```
- * ./floyd_warshall -v 500 -e 1000 -t 4 -l 10 -b -p
+ * ./floyd_warshall -v 10 -e 10 -t 4 -l 2 -b -p
  * ```
  */
 int main(const int argc, const char *const argv[])
