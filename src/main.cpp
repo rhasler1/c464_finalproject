@@ -9,6 +9,60 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
+/**
+ * @brief Entry point for the Floyd-Warshall algorithm program.
+ * 
+ * This function sets up the execution environment, parses command-line arguments, and 
+ * runs the Floyd-Warshall algorithm in one of three modes: sequential, naive parallel, or 
+ * block-parallel (cache-optimized). It also validates user inputs, generates a graph, 
+ * and optionally prints the graph before and after execution.
+ * 
+ * @param argc The number of command-line arguments.
+ * @param argv An array of command-line argument strings.
+ * @return int Returns `0` on successful execution, or `1` if an error occurs (e.g., invalid input or failed graph generation).
+ * 
+ * @details
+ * The program performs the following steps:
+ * 1. **Parse Command-Line Arguments**:
+ *    - `-v, --vertices`: Number of vertices in the graph (default: 100).
+ *    - `-e, --edges`: Number of directed edges in the graph (default: 200).
+ *    - `-t, --threads`: Number of threads for parallel execution (default: 1).
+ *    - `-l, --block-length`: Block size for cache-optimized parallel execution (default: 1).
+ *    - `-s, --sequential`: Run the algorithm sequentially.
+ *    - `-n, --naive-parallel`: Run the algorithm in naive parallel mode.
+ *    - `-b, --block-parallel`: Run the algorithm in block-parallel (cache-optimized) mode.
+ *    - `-p, --print`: Print the graph before and after execution.
+ * 
+ * 2. **Input Validation**:
+ *    - Ensures the block size does not exceed or misalign with the number of vertices.
+ *    - Caps the thread count to the maximum available OpenMP threads.
+ *    - Verifies that at least one mode of execution is selected.
+ * 
+ * 3. **Graph Generation**:
+ *    - Generates a random directed graph with the specified vertices and edges.
+ *    - Uses `INF` to represent disconnected vertices and `0` for self-loops (diagonal entries).
+ * 
+ * 4. **Algorithm Execution**:
+ *    - Depending on the selected mode, executes one of the following:
+ *      - **Sequential Mode**: Runs `serial_floyd_warshall`.
+ *      - **Naive Parallel Mode**: Runs `naive_floyd_warshall` without cache optimizations.
+ *      - **Block Parallel Mode**: Runs `blocked_floyd_warshall` with cache optimizations.
+ *    - Measures execution time for each mode using `plf::nanotimer` and records it with a label.
+ * 
+ * 5. **Output**:
+ *    - Optionally prints the graph before and after execution.
+ *    - Outputs graph details, including memory footprint and execution timestamps.
+ * 
+ * @note 
+ * - The program uses `spdlog` for logging and `fmt` for formatted printing.
+ * - Ensure that `INF` is defined appropriately to represent disconnected vertices.
+ * 
+ * @example
+ * To run the program with 500 vertices, 1000 edges, 4 threads, and block size 10:
+ * ```
+ * ./floyd_warshall -v 500 -e 1000 -t 4 -l 10 -b -p
+ * ```
+ */
 int main(const int argc, const char *const argv[])
 {
     // Initializing defaults.
