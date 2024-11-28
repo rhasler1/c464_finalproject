@@ -6,10 +6,6 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-// Function needs to be modified.
-// 0 < x < INF:     valid edge.   
-// 0:               reserved for distance between vertex and itself (entries on diaganol).
-// INF:             no edges between vertices.
 int generate_linear_graph(std::vector<int> & graph, int vertices, int edges)
 {
     // Set diaganol to 0.
@@ -35,7 +31,7 @@ int generate_linear_graph(std::vector<int> & graph, int vertices, int edges)
     
     std::vector<std::vector<int>> edge(edges, std::vector<int>(2));
     int i = 0;
-    
+
     // Generate directed graph.
     while (i < edges) {
         edge[i][0] = rand() % vertices;
@@ -60,7 +56,7 @@ int generate_linear_graph(std::vector<int> & graph, int vertices, int edges)
         i++;
     }
     
-    // Initialize linear adjacency matrix.
+    // Mark edges in graph.
     int vertex_one, vertex_two;
     for (int j = 0; j < edges; j++) {
         vertex_one = edge[j][0];
@@ -69,4 +65,21 @@ int generate_linear_graph(std::vector<int> & graph, int vertices, int edges)
     }
     
     return 1;
+}
+
+void print_graph(std::vector<int> & graph, int vertices)
+{
+    for (int i = 0; i < vertices; i++) {
+        for (int j = 0; j < vertices; j++) {
+            if (graph[i * vertices + j] == INF)
+            {
+                fmt::print("N ");
+            }
+            else
+            {
+                fmt::print("{} ", graph[i * vertices + j]);
+            }
+        }
+        fmt::print("\n");
+    }
 }

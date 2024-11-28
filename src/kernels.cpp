@@ -1,28 +1,66 @@
 #include "kernels.h"
+#include "globals.h"
 #include <omp.h>
 
-// Helper function to calculate 1D index in a block
-int block_idx(int i, int j, int b) {
+/**
+ * @brief Computes the index for a flattened 2D block in a blocked matrix.
+ * 
+ * This helper function calculates the index of an element in a flattened
+ * representation of a 2D block matrix based on its row (`i`), column (`j`), 
+ * and the block size (`b`).
+ * 
+ * @param i The row index of the element within the block.
+ * @param j The column index of the element within the block.
+ * @param b The size (dimensions) of the block.
+ * @return int The computed index in the flattened block.
+ * 
+ * This function is primarily used for indexing within the `blocked_floyd_warshall` implementation.
+ */
+static int block_idx(int i, int j, int b) {
     return i * b + j;
 }
 
-// Floyd-Warshall on a single block (b × b matrix stored as a 1D vector)
-void floyd(std::vector<int> &C, const std::vector<int> &A, const std::vector<int> &B, int b) {
+/**
+ * @brief Performs the Floyd-Warshall algorithm on a single block of a matrix.
+ * 
+ * This function computes the shortest paths within a single block of a graph's 
+ * adjacency matrix, represented in a flattened format. It updates the block matrix `C` 
+ * with the minimum distances using the input blocks `A` and `B`.
+ * 
+ * @param C A reference to a vector representing the output block (distance matrix) in flattened format.
+ * @param A A reference to a vector representing the first input block (distance matrix) in flattened format.
+ * @param B A reference to a vector representing the second input block (distance matrix) in flattened format.
+ * @param b The size (dimensions) of the block.
+ * 
+ * The algorithm iterates over the elements of the blocks to compute the minimum distances 
+ * based on the formula: `C[i][j] = min(C[i][j], A[i][k] + B[k][j])`. It assumes all matrices 
+ * are flattened and indexed using `block_idx`.
+ */
+static void floyd(std::vector<int> &C, const std::vector<int> &A, const std::vector<int> &B, int b) {
     for (int k = 0; k < b; ++k) {
         for (int j = 0; j < b; ++j) {
             for (int i = 0; i < b; ++i) {
                 int c_idx = block_idx(i, j, b);
                 int a_idx = block_idx(i, k, b);
                 int b_idx = block_idx(k, j, b);
-                C[c_idx] = std::min(C[c_idx], A[a_idx] + B[b_idx]);
+
+                // Check if paths exist before performing adition
+                if
+                (
+                    A[a_idx] != INF &&
+                    B[b_idx] != INF
+                )
+                {
+                    C[c_idx] = std::min(C[c_idx], A[a_idx] + B[b_idx]);
+                }
             }
         }
     }
 }
 
-// Blocked Floyd-Warshall
 void blocked_floyd_warshall(std::vector<int> &W, int n, int b) {
-    int B = n / b; // Number of blocks along one dimension
+    // Number of blocks along one dimension
+    int B = n / b;
 
     // Iterate over all block rows and columns
     for (int k = 0; k < B; ++k) {
@@ -111,14 +149,16 @@ void blocked_floyd_warshall(std::vector<int> &W, int n, int b) {
 void naive_floyd_warshall(std::vector<int> &graph, int vertices)
 {
     for (int k = 0; k < vertices; k++) {
-        // Collapse the i and j loops into a single iteration space;
-        // this allows both loops to parallelize together.
         #pragma omp parallel for collapse(2) schedule(static)
         for (int i = 0; i < vertices; i++) {
             for (int j = 0; j < vertices; j++) {
-                if (graph[i * vertices + j] > (graph[i * vertices + k] + graph[k * vertices + j]))
+                if
+                (
+                    graph[i * vertices + j] > (graph[i * vertices + k] + graph[k * vertices + j]) &&
+                    graph[k * vertices + j] != INF &&
+                    graph[i * vertices + k] != INF
+                )
                 {
-                    // Note: I am assuming weights are not INF.
                     graph[i * vertices + j] = graph[i * vertices + k] + graph[k * vertices + j];
                 }
             }
@@ -131,9 +171,13 @@ void serial_floyd_warshall(std::vector<int> &graph, int vertices)
     for (int k = 0; k < vertices; k++) {
         for (int i = 0; i < vertices; i++) {
             for (int j = 0; j < vertices; j++) {
-                if (graph[i * vertices + j] > (graph[i * vertices + k] + graph[k * vertices + j]))
+                if
+                (
+                    graph[i * vertices + j] > (graph[i * vertices + k] + graph[k * vertices + j]) &&
+                    graph[k * vertices + j] != INF &&
+                    graph[i * vertices + k] != INF
+                )
                 {
-                    // Note: I am assuming weights are not INF.
                     graph[i * vertices + j] = graph[i * vertices + k] + graph[k * vertices + j];
                 }
             }

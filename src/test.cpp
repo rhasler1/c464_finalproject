@@ -1,12 +1,9 @@
 #include <spdlog/spdlog.h>
 #include <gtest/gtest.h>
-#include <omp.h>
 #include "graph.h"
 #include "kernels.h"
 #include "globals.h"
 #include <vector>
-
-//TODO: Figure out what is causing segfault.
 
 class FloydWarshallTest : public testing::Test {
     public:
@@ -46,7 +43,6 @@ TEST_F(FloydWarshallTest, TestAll)
             graph_3[i * vertices + j] = graph_1[i * vertices + j];
         }
     }
-
     // Run serial on graph 1.
     serial_floyd_warshall(graph_1, vertices);
     // Run naive parallel on graph 2.
