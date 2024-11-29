@@ -9,30 +9,83 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
+/**
+ * @brief Entry point for the Floyd-Warshall algorithm program.
+ * 
+ * This function sets up the execution environment, parses command-line arguments, and 
+ * runs the Floyd-Warshall algorithm in one of three modes: sequential, naive parallel, or 
+ * block-parallel (cache-optimized). It also validates user inputs, generates a graph, 
+ * and optionally prints the graph before and after execution.
+ * 
+ * @param argc The number of command-line arguments.
+ * @param argv An array of command-line argument strings.
+ * @return int Returns `0` on successful execution, or `1` if an error occurs (e.g., invalid input or failed graph generation).
+ * 
+ * @details
+ * The program performs the following steps:
+ * 1. **Parse Command-Line Arguments**:
+ *    - `-v, --vertices`: Number of vertices in the graph (default: 100).
+ *    - `-e, --edges`: Number of directed edges in the graph (default: 200).
+ *    - `-t, --threads`: Number of threads for parallel execution (default: 1).
+ *    - `-l, --block-length`: Block size for cache-optimized parallel execution (default: 1).
+ *    - `-s, --sequential`: Run the algorithm sequentially.
+ *    - `-n, --naive-parallel`: Run the algorithm in naive parallel mode.
+ *    - `-b, --block-parallel`: Run the algorithm in block-parallel (cache-optimized) mode.
+ *    - `-p, --print`: Print the graph before and after execution.
+ * 
+ * 2. **Input Validation**:
+ *    - Ensures the block size does not exceed or misalign with the number of vertices.
+ *    - Caps the thread count to the maximum available OpenMP threads.
+ *    - Verifies that at least one mode of execution is selected.
+ * 
+ * 3. **Graph Generation**:
+ *    - Generates a random directed graph with the specified vertices and edges.
+ *    - Uses `INF` to represent disconnected vertices and `0` for self-loops (diagonal entries).
+ * 
+ * 4. **Algorithm Execution**:
+ *    - Depending on the selected mode, executes one of the following:
+ *      - **Sequential Mode**: Runs `serial_floyd_warshall`.
+ *      - **Naive Parallel Mode**: Runs `naive_floyd_warshall` without cache optimizations.
+ *      - **Block Parallel Mode**: Runs `blocked_floyd_warshall` with cache optimizations.
+ *    - Measures execution time for each mode using `plf::nanotimer` and records it with a label.
+ * 
+ * 5. **Output**:
+ *    - Optionally prints the graph before and after execution.
+ *    - Outputs graph details, including memory footprint and execution timestamps.
+ * 
+ * @note 
+ * - The program uses `spdlog` for logging and `fmt` for formatted printing.
+ * - Ensure that `INF` is defined appropriately to represent disconnected vertices.
+ * 
+ * @example
+ * To run the program with 10 vertices, 10 edges, 4 threads, and block length 2:
+ * ```
+ * ./floyd_warshall -v 10 -e 10 -t 4 -l 2 -b -p
+ * ```
+ */
 int main(const int argc, const char *const argv[])
 {
     // Initializing defaults.
-    bool run_sequential{false};                                 // Option to run sequential code.
-    bool run_naive_parallel{false};                             // Option to run naive parallel code.
-    bool run_block_parallel{false};                             // Option to run cache optimized parallel code.
-    bool print{false};                                          // Option to print to console.
+    bool run_sequential{false};
+    bool run_naive_parallel{false};
+    bool run_block_parallel{false};
+    bool print{false};
 
-    int vertices{100};                                          // Default to 100 nodes.
-    int edges{200};                                             // Default to 200 edges.
-    int threads{1};                                             // Default to 1 thread.
-    int block_length{1};                                         // Default to 1 length.
+    int vertices{100};
+    int edges{200};
+    int threads{1};
+    int block_length{1};
 
-    double time_result;                                         // Variable used to mark time.
-    std::vector<std::tuple<std::string, double>> timestamps;    // Place to store timestamps.
-
+    double time_result;
+    std::vector<std::tuple<std::string, double>> timestamps;
 
     // CLI setup and parse.
     CLI::App app{"Floyd-Warshall"};
     app.option_defaults()->always_capture_default(true);
     app.add_option("-v, --vertices", vertices)
-        ->check(CLI::PositiveNumber.description(" >= 1"));      // Change to >= 0; look at CLI API.
+        ->check(CLI::PositiveNumber.description(" >= 1"));
     app.add_option("-e, --edges", edges)
-        ->check(CLI::PositiveNumber.description(" >= 1"));      // Change to >= 0; look at CLI API.
+        ->check(CLI::PositiveNumber.description(" >= 1"));
     app.add_option("-t, --threads", threads)
         ->check(CLI::PositiveNumber.description(" >= 1"));
     app.add_option("-l, --block-length", block_length)
@@ -44,15 +97,27 @@ int main(const int argc, const char *const argv[])
     CLI11_PARSE(app, argc, argv);
 
     // Log the number of vertices and edges.
-    spdlog::info("Number of vertices: {}", vertices);
-    spdlog::info("Number of edges: {}", edges);
+    //spdlog::info("Number of vertices: {}", vertices);
+    //spdlog::info("Number of edges: {}", edges);
 
     // Check if block length is greater than number of vertices.
     if (block_length > vertices)
     {
-        spdlog::error("Block length {} cannot be greater than number of vertices {}",
-        block_length,
-        vertices
+        spdlog::error(
+            "Block length {} cannot be greater than number of vertices {}",
+            block_length,
+            vertices
+        );
+        return 1;
+    }
+
+    // Check if the number of vertices is divisible by block length.
+    if (vertices % block_length != 0)
+    {
+        spdlog::error(
+            "Vertices: {} must be divisible by block length: {}",
+            vertices,
+            block_length
         );
         return 1;
     }
@@ -61,21 +126,25 @@ int main(const int argc, const char *const argv[])
     int max_threads = omp_get_max_threads();
     if (threads > max_threads)
     {
-        spdlog::info("Argument threads {} is greater than max threads {}", threads, max_threads);
+        spdlog::info(
+            "Argument threads {} is greater than max threads {}",
+            threads,
+            max_threads
+        );
         spdlog::info("Setting threads to max threads...");
         threads = max_threads;
         spdlog::info("Threads is now {}", threads);
     }
     omp_set_num_threads(threads);
 
-    // Print number of OMP threads in use.
-    #pragma omp parallel for
-    for (int t = 0; t < 1; t++) {
-        fmt::print(
-            "Number of threads being used: {}\n",
-            omp_get_num_threads()
-        );
-    }
+    // Print number of OMP threads in use -- used for testing.
+    //#pragma omp parallel for
+    //for (int t = 0; t < 1; t++) {
+    //    fmt::print(
+    //        "Number of threads being used: {}\n",
+    //        omp_get_num_threads()
+    //    );
+    //}
 
     // Check user input for mode of execution.
     if
@@ -104,6 +173,8 @@ int main(const int argc, const char *const argv[])
         return 1;
     }
     spdlog::info("Done populating graph with data.");
+
+    // Print generated graph.
     if (print)
     {
         fmt::print("Graph before Floyd-Warshall:\n");
@@ -149,7 +220,7 @@ int main(const int argc, const char *const argv[])
         mark_time(timestamps, time_result, "Block time");
     }
 
-    // Printing execution details.
+    // Print execution details.
     spdlog::info("Printing graph details...");
     if (print)
     {
@@ -157,10 +228,12 @@ int main(const int argc, const char *const argv[])
         print_graph(graph, vertices);
     }
     fmt::print(
-        "Number of vertices: {}\nNumber of edges: {}\nGraph memory footprint: {}\n",
+        "Number of vertices: {}\nNumber of edges: {}\nGraph memory footprint: {}\nNumber of threads: {}\nBlock length: {}\n",
         vertices,
         edges,
-        graph.capacity() * sizeof(graph[0])
+        graph.capacity() * sizeof(graph[0]),
+        threads,
+        block_length
     );
     spdlog::info("Printing timestamps...");
     print_timestamps(timestamps);
