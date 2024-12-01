@@ -20,8 +20,8 @@
  *             exceeds the maximum possible for the given number of vertices.
  * 
  * @details
- * - **Diagonal Initialization**: All diagonal entries are set to `0`, representing the distance 
- *   from a vertex to itself.
+ * - **Memory Initializer**: All diagonal entries are set to `0`, representing the distance 
+ *   from a vertex to itself. All other entries are set to `INF`, representing no connection.
  * - **Edge Generation**: Randomly generates unique directed edges, discarding self-loops and 
  *   duplicate edges. The edges are assigned a weight of `1` in the adjacency matrix.
  * - **Edge Constraints**: Ensures that the number of requested edges does not exceed the maximum 
