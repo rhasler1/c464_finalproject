@@ -8,6 +8,7 @@
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/basic_file_sink.h>
 
 /**
  * @brief Entry point for the Floyd-Warshall algorithm program.
@@ -65,6 +66,10 @@
  */
 int main(const int argc, const char *const argv[])
 {
+    // Setting up spdlog
+    auto file_logger = spdlog::basic_logger_mt("file_logger", "logfile.txt");
+    spdlog::set_default_logger(file_logger);
+
     // Initializing defaults.
     bool run_sequential{false};
     bool run_naive_parallel{false};
