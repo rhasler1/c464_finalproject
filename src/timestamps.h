@@ -32,4 +32,32 @@ void print_timestamps(
     std::vector<std::tuple<std::string, double>> & timestamps
 );
 
+/**
+ * @brief Computes the average of the timestamp values from a collection of labeled timestamps.
+ * 
+ * This function calculates the average of the numerical values (e.g., execution times) stored 
+ * in the second element of each tuple in the provided vector of timestamps. Each tuple consists 
+ * of a label (string) and a numerical value (double).
+ * 
+ * @param timestamps A reference to a vector of tuples, where each tuple contains:
+ *                   - A label (string): Describes the timestamp (e.g., "Sequential time").
+ *                   - A numerical value (double): The timestamp or execution time.
+ * 
+ * @return double The average of the numerical values in the timestamps. If the vector is empty, 
+ *                the behavior of this function is undefined.
+ * 
+ * @details
+ * - The function iterates over the vector using `std::for_each` and an inline lambda function 
+ *   to accumulate the sum of the numerical values and count the total number of elements.
+ * - The average is computed as `sum / count` and returned as a double.
+ * 
+ * @note
+ * - The function assumes that the `timestamps` vector is non-empty. If the vector is empty, 
+ *   the division by zero will result in undefined behavior.
+ * - The input vector must contain valid tuples with numerical values as the second element.
+ */
+double compute_average(
+    std::vector<std::tuple<std::string, double>> & timestamps
+);
+
 #endif
