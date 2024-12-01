@@ -1,7 +1,9 @@
 TODO:
 
-- Check version of cmake on school cluster
-- Move repo to cluster
+- Continue work on strong scaling script
+- Add a weak scaling script
+- Add a script that determines the optimal block size for L1 cache.
+-       Recall: To get the L1 cache size of a Core, Take the total L1 cache size and divide by the number of cores.
 - Collect data
 - Write report
 - Revise README with compilation & execution instructions
