@@ -8,14 +8,15 @@
 
 int generate_linear_graph(std::vector<int> & graph, int vertices, int edges)
 {
-    // Set diaganol to 0.
+    // Initialize memory
     for (int i = 0; i < vertices; i++) {
         for (int j = 0; j < vertices; j++) {
-            // Get current position.
             int position = i * vertices + j;
-            // If position is on a diaganol, then set entry to 0.
             if (position == i * vertices + i) {
                 graph[position] = 0;
+            }
+            else {
+                graph[position] = INF;
             }
         }
     }

@@ -24,3 +24,15 @@ void print_timestamps(std::vector<std::tuple<std::string, double>> & timestamps)
         fmt::print("\n");
     });
 }
+
+double compute_average(std::vector<std::tuple<std::string, double>> & timestamps)
+{
+    double avg = 0.0;
+    double sum = 0.0;
+    int count = 0;
+    std::for_each(timestamps.begin(), timestamps.end(), [&](const auto & tuple) {
+        sum += std::get<1>(tuple);
+        count++;
+    });
+    return (double)(sum/count);
+}

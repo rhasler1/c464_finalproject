@@ -8,6 +8,9 @@
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/basic_file_sink.h>
+
+static void reset_graph(std::vector<int> & graph, std::vector<int> & graph_back, int vertices);
 
 /**
  * @brief Entry point for the Floyd-Warshall algorithm program.
@@ -65,6 +68,10 @@
  */
 int main(const int argc, const char *const argv[])
 {
+    // Setting up spdlog
+    auto file_logger = spdlog::basic_logger_mt("file_logger", "logfile.txt");
+    spdlog::set_default_logger(file_logger);
+
     // Initializing defaults.
     bool run_sequential{false};
     bool run_naive_parallel{false};
@@ -75,6 +82,7 @@ int main(const int argc, const char *const argv[])
     int edges{200};
     int threads{1};
     int block_length{1};
+    int iterations{1};
 
     double time_result;
     std::vector<std::tuple<std::string, double>> timestamps;
@@ -82,6 +90,8 @@ int main(const int argc, const char *const argv[])
     // CLI setup and parse.
     CLI::App app{"Floyd-Warshall"};
     app.option_defaults()->always_capture_default(true);
+    app.add_option("-i, --iterations", iterations)
+        ->check(CLI::PositiveNumber.description(" >= 1"));
     app.add_option("-v, --vertices", vertices)
         ->check(CLI::PositiveNumber.description(" >= 1"));
     app.add_option("-e, --edges", edges)
@@ -167,12 +177,22 @@ int main(const int argc, const char *const argv[])
     // Generate graph.
     spdlog::info("Generating graph data...");
     std::vector<int> graph(vertices * vertices, INF);
+    std::vector<int> graph_back(vertices * vertices, INF);
+
     if (generate_linear_graph(graph, vertices, edges) == -1)
     {
         spdlog::error("Failed to generate graph... Exiting program.");
         return 1;
     }
     spdlog::info("Done populating graph with data.");
+
+    // Copy graph to graph_back
+    for (int i = 0; i < vertices; i++) {
+        for (int j = 0; j < vertices; j++) {
+            int position = i * vertices + j;
+            graph_back[position] = graph[position];
+        }
+    }
 
     // Print generated graph.
     if (print)
@@ -183,42 +203,61 @@ int main(const int argc, const char *const argv[])
 
     if (run_sequential)
     {
-        spdlog::info("Beginning Floyd-Warshall sequential execution...");
-        spdlog::info("Starting nanotimer...");
-        plf::nanotimer sequential_time;
-        sequential_time.start();
-        serial_floyd_warshall(graph, vertices);
-        time_result = sequential_time.get_elapsed_ns();
-        spdlog::info("Sequential execution done.");
-        spdlog::info("Getting elapsed time...");
-        mark_time(timestamps, time_result, "Sequential time");
+        for (int i = 0; i < iterations; i++) {
+            spdlog::info("Resetting graph.");
+            reset_graph(graph, graph_back, vertices);
+            spdlog::info("Starting nanotimer.");
+            plf::nanotimer sequential_time;
+            sequential_time.start();
+            spdlog::info("Beginning Floyd-Warshall sequential execution.");
+            serial_floyd_warshall(graph, vertices);
+            time_result = sequential_time.get_elapsed_ns();
+            spdlog::info("Sequential execution done.");
+            spdlog::info("Getting elapsed time...");
+            std::string label = "Sequential time, iteration: " + std::to_string(i);
+            mark_time(timestamps, time_result, label);
+        }
     }
 
     else if (run_naive_parallel)
     {
-        spdlog::info("Beginning Floyd-Warshall parallel without cache optimizations");
-        spdlog::info("Beginning nanotimer...");
-        plf::nanotimer naive_parallel_time;
-        naive_parallel_time.start();
-        naive_floyd_warshall(graph, vertices);
-        time_result = naive_parallel_time.get_elapsed_ns();
-        spdlog::info("Naive execution done.");
-        spdlog::info("Getting elapsed time...");
-        mark_time(timestamps, time_result, "Naive time");
+        for (int i = 0; i < iterations; i++) {
+            spdlog::info("Resetting graph.");
+            reset_graph(graph, graph_back, vertices);
+            spdlog::info("Beginning nanotimer...");
+            plf::nanotimer naive_parallel_time;
+            naive_parallel_time.start();
+            spdlog::info("Beginning Floyd-Warshall parallel without cache optimizations");
+            naive_floyd_warshall(graph, vertices);
+            time_result = naive_parallel_time.get_elapsed_ns();
+            spdlog::info("Naive execution done.");
+            spdlog::info("Getting elapsed time...");
+            std::string label = "Naive time, iteration: " + std::to_string(i);
+            mark_time(timestamps, time_result, label);
+        }
     }
 
     else if (run_block_parallel)
     {
-        spdlog::info("Beginning Floyd-Warshall parallel with cache optimizations");
-        spdlog::info("Beginning nanotimer...");
-        plf::nanotimer block_parallel_time;
-        block_parallel_time.start();
-        blocked_floyd_warshall(graph, vertices, block_length);
-        time_result = block_parallel_time.get_elapsed_ns();
-        spdlog::info("Optimized execution done.");
-        spdlog::info("Getting elapsed time...");
-        mark_time(timestamps, time_result, "Block time");
+        for (int i = 0; i < iterations; i++) {
+            spdlog::info("Resetting graph.");
+            reset_graph(graph, graph_back, vertices);
+            spdlog::info("Beginning nanotimer...");
+            plf::nanotimer block_parallel_time;
+            block_parallel_time.start();
+            spdlog::info("Beginning Floyd-Warshall parallel with cache optimizations");
+            blocked_floyd_warshall(graph, vertices, block_length);
+            time_result = block_parallel_time.get_elapsed_ns();
+            spdlog::info("Optimized execution done.");
+            spdlog::info("Getting elapsed time...");
+            std::string label = "Block time, iteration: " + std::to_string(i);
+            mark_time(timestamps, time_result, label);
+        }
     }
+
+    // Compute average:
+    double avg = compute_average(timestamps);
+    mark_time(timestamps, avg, "Average execution time");
 
     // Print execution details.
     spdlog::info("Printing graph details...");
@@ -239,4 +278,14 @@ int main(const int argc, const char *const argv[])
     print_timestamps(timestamps);
     spdlog::info("Exiting program.");
     return 0;
+}
+
+static void reset_graph(std::vector<int> & graph, std::vector<int> & graph_back, int vertices)
+{
+    for (int i = 0; i < vertices; i++) {
+        for (int j = 0; j < vertices; j++) {
+            int position = i * vertices + j;
+            graph[position] = graph_back[position];
+        }
+    }
 }
