@@ -1,6 +1,11 @@
 # Minimum version of CMake
 cmake_minimum_required(VERSION 3.28)
 
+# Default Apple Clang compiler does not support OMP.
+# Brew install llvm, then uncomment the two lines of code below for work-around.
+#set(CMAKE_C_COMPILER "/opt/homebrew/opt/llvm/bin/clang")
+#set(CMAKE_CXX_COMPILER "/opt/homebrew/opt/llvm/bin/clang++")
+
 # Project name and language
 project(
 	floyd_warshall
