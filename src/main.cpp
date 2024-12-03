@@ -175,10 +175,8 @@ int main(const int argc, const char *const argv[])
     }
     
     // Generate graph.
-    spdlog::info("Generating graph data...");
+    spdlog::info("Generating graph data.");
     std::vector<int> graph(vertices * vertices, INF);
-    std::vector<int> graph_back(vertices * vertices, INF);
-
     if (generate_linear_graph(graph, vertices, edges) == -1)
     {
         spdlog::error("Failed to generate graph... Exiting program.");
@@ -187,6 +185,8 @@ int main(const int argc, const char *const argv[])
     spdlog::info("Done populating graph with data.");
 
     // Copy graph to graph_back
+    spdlog::info("Backing up graph data.");
+    std::vector<int> graph_back(vertices * vertices, INF);
     for (int i = 0; i < vertices; i++) {
         for (int j = 0; j < vertices; j++) {
             int position = i * vertices + j;
@@ -260,12 +260,13 @@ int main(const int argc, const char *const argv[])
     mark_time(timestamps, avg, "Average execution time");
 
     // Print execution details.
-    spdlog::info("Printing graph details...");
+    spdlog::info("Printing graph details.");
     if (print)
     {
         fmt::print("Graph after Floyd-Warshall:\n");
         print_graph(graph, vertices);
     }
+    fmt::print("Execution details:\n");
     fmt::print(
         "Number of vertices: {}\nNumber of edges: {}\nGraph memory footprint: {}\nNumber of threads: {}\nBlock length: {}\n",
         vertices,
