@@ -9,7 +9,7 @@
 
 # Variables
 # Replace with path to executable.
-EXECUTABLE="./build-testing-2/bin/floyd_warshall"						# Path to executable
+EXECUTABLE="./build-release/bin/floyd_warshall"						# Path to executable
 OUTPUT_FILE="weak_b_results.txt"								# File to store the output
 
 STEPS=5

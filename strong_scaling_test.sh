@@ -9,7 +9,7 @@
 
 # Variables
 # Replace with relative path to executable.
-EXECUTABLE="./build-testing-2/bin/floyd_warshall"						# Path to executable
+EXECUTABLE="./build-release/bin/floyd_warshall"						# Path to executable
 OUTPUT_FILE="strong_n_results.txt"								# File to store the output
 VERTICE_ITERS=4											# Vertices are incremented in outter loop. 
 THREAD_ITERS=6											# Threads are incremented in inner loop.
@@ -30,6 +30,7 @@ LENGTH=20											# Tile length
 # Loop to run the executable
 for ((i=0; i < VERTICE_ITERS; i++)); do
 	for ((j=0; j < THREAD_ITERS; j++)); do
+		echo "Run with $VERTICES Vertices and $THREADS Threads"
 		echo "Run with $VERTICES Vertices and $THREADS Threads" >> "$OUTPUT_FILE"
 		$EXECUTABLE $MODE -t $THREADS -e $EDGES -v $VERTICES -l $LENGTH -i $STEPS>> "$OUTPUT_FILE"
 		echo "" >> "$OUTPUT_FILE"
