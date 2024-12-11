@@ -149,7 +149,7 @@ void blocked_floyd_warshall(std::vector<int> &W, int n, int b) {
 void naive_floyd_warshall(std::vector<int> &graph, int vertices)
 {
     for (int k = 0; k < vertices; k++) {
-        #pragma omp parallel for collapse(2) schedule(static)
+        #pragma omp parallel for schedule(static)
         for (int i = 0; i < vertices; i++) {
             for (int j = 0; j < vertices; j++) {
                 if
