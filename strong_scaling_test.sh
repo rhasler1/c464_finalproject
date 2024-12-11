@@ -8,19 +8,20 @@
 # 2. Increment vertices.
 
 # Variables
-EXECUTABLE="./build-testing-2/bin/floyd_warshall"						# Path to executable
+# Replace with relative path to executable.
+EXECUTABLE="./build-release/bin/floyd_warshall"						# Path to executable
 OUTPUT_FILE="strong_n_results.txt"								# File to store the output
 VERTICE_ITERS=4											# Vertices are incremented in outter loop. 
-THREAD_ITERS=5											# Threads are incremented in inner loop.
+THREAD_ITERS=6											# Threads are incremented in inner loop.
 STEPS=1
 
 MODE="-n"											# -s: sequential, -n: naive, -b: blocked
 THREADS=1											# Starting thread count
 MAX_THREADS=32											# Maximum number of threads available on system.
-VERTICES=1000											# Starting number of vertices
-MAX_VERTICES=8000										# Maximum number of vertices
-EDGES=1000											# Number of edges
-LENGTH=200											# Tile length
+VERTICES=500											# Starting number of vertices
+MAX_VERTICES=4000										# Maximum number of vertices
+EDGES=500											# Number of edges
+LENGTH=20											# Tile length
 
 
 # Clear the output file if it exists
@@ -29,6 +30,7 @@ LENGTH=200											# Tile length
 # Loop to run the executable
 for ((i=0; i < VERTICE_ITERS; i++)); do
 	for ((j=0; j < THREAD_ITERS; j++)); do
+		echo "Run with $VERTICES Vertices and $THREADS Threads"
 		echo "Run with $VERTICES Vertices and $THREADS Threads" >> "$OUTPUT_FILE"
 		$EXECUTABLE $MODE -t $THREADS -e $EDGES -v $VERTICES -l $LENGTH -i $STEPS>> "$OUTPUT_FILE"
 		echo "" >> "$OUTPUT_FILE"

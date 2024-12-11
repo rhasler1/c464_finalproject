@@ -8,7 +8,8 @@
 # 2. Increment vertices.
 
 # Variables
-EXECUTABLE="./build-testing-2/bin/floyd_warshall"						# Path to executable
+# Replace with path to executable.
+EXECUTABLE="./build-release/bin/floyd_warshall"						# Path to executable
 OUTPUT_FILE="weak_b_results.txt"								# File to store the output
 
 STEPS=5
@@ -31,7 +32,7 @@ VERTICE4=2600											# #Vertices for 16 threads.
 VERTICE5=3000											# #Vertices for 32 threads.
 
 EDGES=1000											# Number of edges
-LENGTH=200											# Block length
+LENGTH=20											# Block length
 
 
 # Clear the output file if it exists

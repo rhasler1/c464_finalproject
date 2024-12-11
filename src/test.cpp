@@ -3,6 +3,7 @@
 #include "graph.h"
 #include "kernels.h"
 #include "globals.h"
+#include <omp.h>
 #include <vector>
 
 class FloydWarshallTest : public testing::Test {
@@ -19,9 +20,10 @@ class FloydWarshallTest : public testing::Test {
         }
     
     protected:
-        int vertices{100};
+        int vertices{1000};
         int edges{200};
-        int tile_length{10};
+        int tile_length{20};
+        int threads{2};
 
         std::vector<int> graph_1;
         std::vector<int> graph_2;
@@ -43,6 +45,8 @@ TEST_F(FloydWarshallTest, TestAll)
             graph_3[i * vertices + j] = graph_1[i * vertices + j];
         }
     }
+    // Set threads
+    omp_set_num_threads(threads);
     // Run serial on graph 1.
     serial_floyd_warshall(graph_1, vertices);
     // Run naive parallel on graph 2.
