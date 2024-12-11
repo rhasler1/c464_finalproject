@@ -31,9 +31,9 @@ __Executing code:__
     - Vertices must be divisible by block length.
     - A mode of execution must be specified.
 
-Example exeuction 1: ./bin/floyd_warshall -s
+Example execution 1: ./bin/floyd_warshall -s
 
-Example exeuction 2: ./bin/floyd_warshall -b -l 20 -v 500 -e 500 -t 8
+Example execution 2: ./bin/floyd_warshall -b -l 20 -v 500 -e 500 -t 8
 
 
 __Running benchmarks__
