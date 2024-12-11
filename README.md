@@ -12,10 +12,10 @@ __Installation and Build Process:__
 6. Build: `cmake --build .`
 
 __Running Tests:__
-1. Starting in the build-release directory, tests can be executed: `./bin/tests`
+1. Change directory to build-release and run: `./bin/tests`
 
-__Executing code:_
-1. Starting in the build-release directory, code can be executed: `./bin/floyd_warshall <args>`
+__Executing code:__
+1. Change directory to build-release and run: `./bin/floyd_warshall <args>`
 - List of args:
     - -s: sequential mode of execution
     - -n: naive mode of execution
@@ -26,6 +26,15 @@ __Executing code:_
     - -t: specify number of threads
     - -l: specify block length
     - -i: specify number of iterations to run
+
+- Note there are dependencies/requirements on some of the args, e.g:,
+    - Vertices must be divisible by block length.
+    - A mode of execution must be specified.
+
+Example exeuction 1: ./bin/floyd_warshall -s
+
+Example exeuction 2: ./bin/floyd_warshall -b -l 20 -v 500 -e 500 -t 8
+
 
 __Running benchmarks__
 1. Strong scaling benchmark: `strong_scaling_test.sh`
